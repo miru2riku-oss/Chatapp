@@ -3,142 +3,283 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Discord Clone (Firebase版)</title>
+    <title>chatapp</title>
     <style>
-        /* CSSは前回と全く同じなので省略せずにそのまま使います */
         :root { --bg-dark: #36393f; --bg-darker: #2f3136; --bg-darkest: #202225; --text-main: #dcddde; --text-muted: #72767d; --accent: #5865F2; --online: #3ba55c; }
         body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: var(--bg-dark); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
-        .sidebar { width: 250px; background-color: var(--bg-darker); display: flex; flex-direction: column; }
+        
+        /* サイドバー */
+        .sidebar { width: 260px; background-color: var(--bg-darker); display: flex; flex-direction: column; }
         .user-profile { background-color: var(--bg-darkest); padding: 15px; display: flex; align-items: center; gap: 10px; }
         .status-indicator { width: 12px; height: 12px; border-radius: 50%; background-color: var(--online); }
-        .chat-area { flex: 1; display: flex; flex-direction: column; }
-        .chat-header { padding: 15px; border-bottom: 1px solid var(--bg-darkest); font-weight: bold; }
+        .friend-actions { padding: 15px; border-bottom: 1px solid var(--bg-darkest); }
+        .friend-actions input { width: 100%; padding: 8px; box-sizing: border-box; background-color: var(--bg-darkest); border: none; color: white; border-radius: 4px; margin-bottom: 5px; }
+        .friend-actions button { width: 100%; padding: 8px; background-color: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .friend-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .friend-item { padding: 10px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+        .friend-item:hover { background-color: var(--bg-dark); }
+        .friend-item.active { background-color: var(--accent); color: white; }
+        
+        /* チャットエリア */
+        .chat-area { flex: 1; display: flex; flex-direction: column; background-color: var(--bg-dark); }
+        .chat-header { padding: 15px; border-bottom: 1px solid var(--bg-darkest); font-weight: bold; font-size: 1.1em; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
         .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
         .message { display: flex; flex-direction: column; }
-        .message-header { display: flex; align-items: baseline; gap: 10px; }
-        .message-sender { font-weight: bold; }
-        .message-time { font-size: 0.8em; color: var(--text-muted); }
+        .message-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+        .message-sender { font-weight: bold; color: white; }
+        .message-time { font-size: 0.75em; color: var(--text-muted); }
+        .message-content { line-height: 1.4; }
+        .message-image { max-width: 300px; border-radius: 5px; margin-top: 5px; cursor: pointer; }
+        
+        /* 入力エリア */
         .chat-input-area { padding: 20px; background-color: var(--bg-dark); }
-        .chat-input-wrapper { background-color: #40444b; border-radius: 8px; display: flex; padding: 10px; align-items: center; }
+        .chat-input-wrapper { background-color: #40444b; border-radius: 8px; display: flex; padding: 10px; align-items: center; gap: 10px; }
         .chat-input-wrapper input[type="text"] { flex: 1; background: transparent; border: none; color: white; outline: none; font-size: 1em; }
-        .send-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2em; padding: 0 10px; }
-        .send-btn:hover { color: white; }
+        .icon-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2em; padding: 5px; transition: color 0.2s; }
+        .icon-btn:hover { color: white; }
     </style>
 </head>
 <body>
+
     <div class="sidebar">
         <div class="user-profile">
             <div class="status-indicator"></div>
             <div>
-                <div style="font-weight: bold;">マイアカウント</div>
+                <div style="font-weight: bold;">chatapp ユーザー</div>
                 <div style="font-size: 0.8em; color: var(--text-muted);">ID: <span id="myUserId">読込中...</span></div>
             </div>
         </div>
+
+        <div class="friend-actions">
+            <input type="text" id="friendIdInput" placeholder="フレンドID (6桁)を追加" maxlength="6">
+            <button id="addFriendBtn">フレンド追加</button>
         </div>
 
-    <div class="chat-area">
-        <div class="chat-header">🌐 グローバルチャットルーム（全ユーザー共通）</div>
-        <div class="messages" id="messagesArea">
+        <div class="friend-list" id="friendList">
+            <div style="color: var(--text-muted); font-size: 0.9em; text-align: center; margin-top: 20px;">
+                フレンドを追加して<br>チャットを始めましょう
             </div>
+        </div>
+    </div>
+
+    <div class="chat-area">
+        <div class="chat-header" id="chatHeader">
+            💬 メッセージ
+        </div>
+        <div class="messages" id="messagesArea">
+            <div style="text-align: center; color: var(--text-muted); margin-top: 50px;">
+                左のリストからフレンドを選択してください
+            </div>
+        </div>
         <div class="chat-input-area">
             <div class="chat-input-wrapper">
-                <input type="text" id="messageInput" placeholder="メッセージを送信...">
-                <button class="send-btn" id="sendBtn">送信</button>
+                <input type="file" id="fileInput" style="display: none;" accept="image/*">
+                <button class="icon-btn" id="fileBtn" title="画像を送る">📎</button>
+                <input type="text" id="messageInput" placeholder="メッセージを送信..." disabled>
+                <button class="icon-btn" id="sendBtn" disabled>▶</button>
             </div>
         </div>
     </div>
 
     <script type="module">
-        // 1. Firebaseの機能をインポート
+        // 1. 【絶対に失敗しないID発行処理】を最初に実行
+        let myId = localStorage.getItem('chatapp_my_id');
+        if (!myId) {
+            myId = Math.floor(100000 + Math.random() * 900000).toString();
+            localStorage.setItem('chatapp_my_id', myId);
+        }
+        document.getElementById('myUserId').textContent = myId;
+
+        // 2. Firebaseのインポート
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // 2. 【重要】ここにステップ1で取得したあなたの firebaseConfig を貼り付けてください！
-        const firebaseConfig = {// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDSrzR3O41SsNfAohQKzlwxc0iCPF5o0Pg",
-  authDomain: "chatapp-62d81.firebaseapp.com",
-  projectId: "chatapp-62d81",
-  storageBucket: "chatapp-62d81.firebasestorage.app",
-  messagingSenderId: "308156426883",
-  appId: "1:308156426883:web:e50957cbf76b4be42a89b6",
-  measurementId: "G-JG5C08XY4X"
+        // ==========================================
+        // ↓↓↓ ここにあなたの firebaseConfig を貼り付けます ↓↓↓
+        const firebaseConfig = {
+            apiKey: "AIzaSyDSrzR3O41SsNfAohQKzlwxc0iCPF5o0Pg",
+            authDomain: "chatapp-62d81.firebaseapp.com",
+            projectId: "chatapp-62d81",
+            storageBucket: "chatapp-62d81.firebasestorage.app",
+            messagingSenderId: "1:308156426883:web:e50957cbf76b4be42a89b6",
+            appId: "G-JG5C08XY4X"
         };
+        // ↑↑↑ ここまで ↑↑↑
+        // ==========================================
 
-        // 3. Firebaseの初期化
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- ユーザーIDの管理（ローカルストレージと連携） ---
-        let myUserId = localStorage.getItem('myChatId');
-        if (!myUserId) {
-            myUserId = Math.floor(100000 + Math.random() * 900000).toString(); // 6桁のID生成
-            localStorage.setItem('myChatId', myUserId);
+        // 変数準備
+        let currentChatFriendId = null;
+        let unsubscribeMessages = null;
+
+        // --- 起動時に自分の情報をデータベースに登録（オンライン状態の基礎） ---
+        async function registerMe() {
+            try {
+                await setDoc(doc(db, "users", myId), {
+                    lastLogin: serverTimestamp(),
+                    isOnline: true
+                }, { merge: true });
+            } catch (e) {
+                console.error("ユーザー登録エラー。テストモードが有効か確認してください", e);
+            }
         }
-        document.getElementById('myUserId').textContent = myUserId;
+        registerMe();
 
-        // --- メッセージのリアルタイム受信（これこそがFirebaseの力！） ---
-        const messagesArea = document.getElementById('messagesArea');
-        const q = query(collection(db, "messages"), orderBy("createdAt", "asc"));
+        // --- フレンド機能 ---
+        document.getElementById('addFriendBtn').addEventListener('click', async () => {
+            const targetId = document.getElementById('friendIdInput').value;
+            if (targetId.length !== 6 || isNaN(targetId)) return alert("6桁の数字を入力してください");
+            if (targetId === myId) return alert("自分自身は追加できません");
 
-        // onSnapshotを使うと、データベースが更新された瞬間に自動でこの処理が走ります
-        onSnapshot(q, (snapshot) => {
-            messagesArea.innerHTML = ''; // 一旦クリア
-            snapshot.forEach((doc) => {
-                const msg = doc.data();
-                const div = document.createElement('div');
-                div.className = 'message';
-                
-                // 時間のフォーマット処理
-                let timeString = "送信中...";
-                if (msg.createdAt) {
-                    const date = msg.createdAt.toDate();
-                    timeString = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                }
+            // 自分のドキュメントの中にある「friends」リストに追加
+            const myRef = doc(db, "users", myId);
+            const mySnap = await getDoc(myRef);
+            let friends = [];
+            if (mySnap.exists() && mySnap.data().friends) {
+                friends = mySnap.data().friends;
+            }
 
-                const isMe = msg.senderId === myUserId;
-                const displayName = isMe ? `あなた (ID: ${msg.senderId})` : `ユーザー (ID: ${msg.senderId})`;
-
-                div.innerHTML = `
-                    <div class="message-header">
-                        <span class="message-sender" style="color: ${isMe ? 'var(--accent)' : 'white'}">${displayName}</span>
-                        <span class="message-time">${timeString}</span>
-                    </div>
-                    <div>${msg.text}</div>
-                `;
-                messagesArea.appendChild(div);
-            });
-            // 一番下までスクロール
-            messagesArea.scrollTop = messagesArea.scrollHeight;
+            if (!friends.includes(targetId)) {
+                friends.push(targetId);
+                await setDoc(myRef, { friends: friends }, { merge: true });
+                alert(`ID: ${targetId} をフレンドに追加しました！`);
+                document.getElementById('friendIdInput').value = '';
+            } else {
+                alert("既にフレンドに追加されています");
+            }
         });
 
-        // --- メッセージの送信 ---
+        // 自分のフレンドリストをリアルタイム監視
+        onSnapshot(doc(db, "users", myId), (docSnap) => {
+            if (docSnap.exists() && docSnap.data().friends) {
+                renderFriendList(docSnap.data().friends);
+            }
+        });
+
+        function renderFriendList(friends) {
+            const list = document.getElementById('friendList');
+            if (friends.length === 0) return;
+            list.innerHTML = '';
+            
+            friends.forEach(friendId => {
+                const div = document.createElement('div');
+                div.className = `friend-item ${friendId === currentChatFriendId ? 'active' : ''}`;
+                div.innerHTML = `
+                    <div class="status-indicator"></div>
+                    <span>ユーザー ${friendId}</span>
+                `;
+                div.onclick = () => openChat(friendId);
+                list.appendChild(div);
+            });
+        }
+
+        // --- チャットルーム機能 ---
+        function openChat(friendId) {
+            currentChatFriendId = friendId;
+            document.getElementById('chatHeader').textContent = `💬 ユーザー ${friendId} とのチャット`;
+            
+            // UIのアクティブ状態を更新
+            const items = document.querySelectorAll('.friend-item');
+            items.forEach(item => item.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            // 入力欄を有効化
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+
+            // 1対1の専用ルームIDを作成（IDが若い順に結合して必ず同じ文字列にする）
+            const roomId = [myId, friendId].sort().join('_');
+            loadMessages(roomId);
+        }
+
+        function loadMessages(roomId) {
+            const messagesArea = document.getElementById('messagesArea');
+            if (unsubscribeMessages) unsubscribeMessages(); // 前の監視を解除
+
+            const q = query(collection(db, `rooms/${roomId}/messages`), orderBy("createdAt", "asc"));
+            
+            unsubscribeMessages = onSnapshot(q, (snapshot) => {
+                messagesArea.innerHTML = '';
+                snapshot.forEach((doc) => {
+                    const msg = doc.data();
+                    const isMe = msg.senderId === myId;
+                    const time = msg.createdAt ? msg.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '送信中...';
+                    
+                    const div = document.createElement('div');
+                    div.className = 'message';
+                    
+                    // 画像かテキストかで表示を変える
+                    let contentHtml = '';
+                    if (msg.imageUrl) {
+                        contentHtml = `<img src="${msg.imageUrl}" class="message-image" onclick="window.open('${msg.imageUrl}')">`;
+                    } else {
+                        contentHtml = `<div class="message-content">${msg.text}</div>`;
+                    }
+
+                    div.innerHTML = `
+                        <div class="message-header">
+                            <span class="message-sender" style="color: ${isMe ? 'var(--accent)' : 'white'}">${isMe ? 'あなた' : '相手'}</span>
+                            <span class="message-time">${time}</span>
+                        </div>
+                        ${contentHtml}
+                    `;
+                    messagesArea.appendChild(div);
+                });
+                messagesArea.scrollTop = messagesArea.scrollHeight; // 一番下へスクロール
+            });
+        }
+
+        // --- 送信機能（テキスト） ---
         document.getElementById('sendBtn').addEventListener('click', async () => {
+            if (!currentChatFriendId) return;
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
             if (!text) return;
 
-            input.value = ''; // 入力欄を空にする
+            input.value = '';
+            const roomId = [myId, currentChatFriendId].sort().join('_');
 
-            // Firestoreにデータを追加
-            try {
-                await addDoc(collection(db, "messages"), {
-                    text: text,
-                    senderId: myUserId,
-                    createdAt: serverTimestamp() // サーバーの正確な時間を記録
-                });
-            } catch (e) {
-                console.error("エラーが発生しました: ", e);
-                alert("送信に失敗しました。Firebaseの設定（テストモードになっているか等）を確認してください。");
-            }
+            await addDoc(collection(db, `rooms/${roomId}/messages`), {
+                text: text,
+                senderId: myId,
+                createdAt: serverTimestamp()
+            });
         });
 
         // Enterキーで送信
-        document.getElementById('messageInput').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') {
-                document.getElementById('sendBtn').click();
-            }
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') document.getElementById('sendBtn').click();
         });
+
+        // --- 送信機能（画像 / ファイル） ---
+        document.getElementById('fileBtn').addEventListener('click', () => {
+            if (!currentChatFriendId) return alert('先にフレンドを選択してください');
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // ファイルをBase64に変換して直接Firestoreに保存（※本番環境ではStorageを使いますが、今回は簡易実装です）
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const base64Data = event.target.result;
+                const roomId = [myId, currentChatFriendId].sort().join('_');
+                
+                await addDoc(collection(db, `rooms/${roomId}/messages`), {
+                    text: "[画像]",
+                    imageUrl: base64Data,
+                    senderId: myId,
+                    createdAt: serverTimestamp()
+                });
+            };
+            reader.readAsDataURL(file); // 画像読み込み開始
+            e.target.value = ''; // 選択リセット
+        });
+
     </script>
 </body>
 </html>
