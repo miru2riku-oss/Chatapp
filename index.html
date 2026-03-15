@@ -3,339 +3,142 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Discord Clone</title>
+    <title>Web Discord Clone (Firebase版)</title>
     <style>
-        :root {
-            --bg-dark: #36393f;
-            --bg-darker: #2f3136;
-            --bg-darkest: #202225;
-            --text-main: #dcddde;
-            --text-muted: #72767d;
-            --accent: #5865F2;
-            --online: #3ba55c;
-        }
-        body {
-            margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
-        /* サイドバー（フレンドリストなど） */
-        .sidebar {
-            width: 250px;
-            background-color: var(--bg-darker);
-            display: flex;
-            flex-direction: column;
-        }
-        .user-profile {
-            background-color: var(--bg-darkest);
-            padding: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background-color: var(--online);
-        }
-        .friend-actions {
-            padding: 15px;
-            border-bottom: 1px solid var(--bg-darkest);
-        }
-        .friend-actions input {
-            width: 100%;
-            padding: 8px;
-            box-sizing: border-box;
-            background-color: var(--bg-darkest);
-            border: none;
-            color: white;
-            border-radius: 4px;
-            margin-bottom: 5px;
-        }
-        .friend-actions button {
-            width: 100%;
-            padding: 8px;
-            background-color: var(--accent);
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .friend-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-        }
-        .friend-item {
-            padding: 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .friend-item:hover {
-            background-color: var(--bg-dark);
-        }
-        
-        /* メインチャットエリア */
-        .chat-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background-color: var(--bg-dark);
-        }
-        .chat-header {
-            padding: 15px;
-            border-bottom: 1px solid var(--bg-darkest);
-            font-weight: bold;
-        }
-        .messages {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        .message {
-            display: flex;
-            flex-direction: column;
-        }
-        .message-header {
-            display: flex;
-            align-items: baseline;
-            gap: 10px;
-        }
+        /* CSSは前回と全く同じなので省略せずにそのまま使います */
+        :root { --bg-dark: #36393f; --bg-darker: #2f3136; --bg-darkest: #202225; --text-main: #dcddde; --text-muted: #72767d; --accent: #5865F2; --online: #3ba55c; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: var(--bg-dark); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 250px; background-color: var(--bg-darker); display: flex; flex-direction: column; }
+        .user-profile { background-color: var(--bg-darkest); padding: 15px; display: flex; align-items: center; gap: 10px; }
+        .status-indicator { width: 12px; height: 12px; border-radius: 50%; background-color: var(--online); }
+        .chat-area { flex: 1; display: flex; flex-direction: column; }
+        .chat-header { padding: 15px; border-bottom: 1px solid var(--bg-darkest); font-weight: bold; }
+        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .message { display: flex; flex-direction: column; }
+        .message-header { display: flex; align-items: baseline; gap: 10px; }
         .message-sender { font-weight: bold; }
         .message-time { font-size: 0.8em; color: var(--text-muted); }
-        
-        .chat-input-area {
-            padding: 20px;
-            background-color: var(--bg-dark);
-        }
-        .chat-input-wrapper {
-            background-color: #40444b;
-            border-radius: 8px;
-            display: flex;
-            padding: 10px;
-            align-items: center;
-        }
-        .chat-input-wrapper input[type="text"] {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: white;
-            outline: none;
-            font-size: 1em;
-        }
-        .file-btn, .send-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 1.2em;
-            padding: 0 10px;
-        }
-        .file-btn:hover, .send-btn:hover { color: white; }
-        .image-preview { max-width: 200px; border-radius: 8px; margin-top: 5px; }
+        .chat-input-area { padding: 20px; background-color: var(--bg-dark); }
+        .chat-input-wrapper { background-color: #40444b; border-radius: 8px; display: flex; padding: 10px; align-items: center; }
+        .chat-input-wrapper input[type="text"] { flex: 1; background: transparent; border: none; color: white; outline: none; font-size: 1em; }
+        .send-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2em; padding: 0 10px; }
+        .send-btn:hover { color: white; }
     </style>
 </head>
 <body>
-
     <div class="sidebar">
         <div class="user-profile">
             <div class="status-indicator"></div>
             <div>
                 <div style="font-weight: bold;">マイアカウント</div>
-                <div style="font-size: 0.8em; color: var(--text-muted);">ID: <span id="myUserId">------</span></div>
+                <div style="font-size: 0.8em; color: var(--text-muted);">ID: <span id="myUserId">読込中...</span></div>
             </div>
         </div>
-
-        <div class="friend-actions">
-            <input type="text" id="friendIdInput" placeholder="フレンドID (6桁)を入力" maxlength="6">
-            <button onclick="sendFriendRequest()">フレンド申請を送る</button>
         </div>
-
-        <div class="friend-list" id="friendList">
-            </div>
-    </div>
 
     <div class="chat-area">
-        <div class="chat-header" id="currentChatUser">
-            チャットするフレンドを選択してください
-        </div>
+        <div class="chat-header">🌐 グローバルチャットルーム（全ユーザー共通）</div>
         <div class="messages" id="messagesArea">
             </div>
         <div class="chat-input-area">
             <div class="chat-input-wrapper">
-                <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect(event)">
-                <button class="file-btn" onclick="document.getElementById('fileInput').click()">📎</button>
                 <input type="text" id="messageInput" placeholder="メッセージを送信...">
-                <button class="send-btn" onclick="sendMessage()">送信</button>
+                <button class="send-btn" id="sendBtn">送信</button>
             </div>
         </div>
     </div>
 
-    <script>
-        // --- データ管理（ローカルストレージを使用） ---
-        let appData = JSON.parse(localStorage.getItem('chatAppData')) || {
-            user: null,
-            friends: [],
-            messages: {}, // { friendId: [ {sender, text, file, timestamp} ] }
-            settings: { onlineStatus: true }
+    <script type="module">
+        // 1. Firebaseの機能をインポート
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // 2. 【重要】ここにステップ1で取得したあなたの firebaseConfig を貼り付けてください！
+        const firebaseConfig = {// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDSrzR3O41SsNfAohQKzlwxc0iCPF5o0Pg",
+  authDomain: "chatapp-62d81.firebaseapp.com",
+  projectId: "chatapp-62d81",
+  storageBucket: "chatapp-62d81.firebasestorage.app",
+  messagingSenderId: "308156426883",
+  appId: "1:308156426883:web:e50957cbf76b4be42a89b6",
+  measurementId: "G-JG5C08XY4X"
         };
 
-        // 初期化処理
-        function initApp() {
-            if (!appData.user) {
-                // ランダムな6桁のIDを発行
-                const newId = Math.floor(100000 + Math.random() * 900000).toString();
-                appData.user = { id: newId, name: "User_" + newId };
-                saveData();
-            }
-            document.getElementById('myUserId').textContent = appData.user.id;
-            renderFriends();
+        // 3. Firebaseの初期化
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- ユーザーIDの管理（ローカルストレージと連携） ---
+        let myUserId = localStorage.getItem('myChatId');
+        if (!myUserId) {
+            myUserId = Math.floor(100000 + Math.random() * 900000).toString(); // 6桁のID生成
+            localStorage.setItem('myChatId', myUserId);
         }
+        document.getElementById('myUserId').textContent = myUserId;
 
-        // データの保存
-        function saveData() {
-            localStorage.setItem('chatAppData', JSON.stringify(appData));
-        }
+        // --- メッセージのリアルタイム受信（これこそがFirebaseの力！） ---
+        const messagesArea = document.getElementById('messagesArea');
+        const q = query(collection(db, "messages"), orderBy("createdAt", "asc"));
 
-        // --- フレンド機能 ---
-        function sendFriendRequest() {
-            const friendId = document.getElementById('friendIdInput').value;
-            if (friendId.length !== 6 || isNaN(friendId)) {
-                alert("6桁の数字を入力してください。");
-                return;
-            }
-            if (friendId === appData.user.id) {
-                alert("自分自身は追加できません。");
-                return;
-            }
-            if (appData.friends.find(f => f.id === friendId)) {
-                alert("既にフレンドです。");
-                return;
-            }
-
-            // 本来はここでサーバーへ申請を送りますが、今回はローカルで直接追加します
-            appData.friends.push({ id: friendId, name: "User_" + friendId, online: Math.random() > 0.5 });
-            if (!appData.messages[friendId]) appData.messages[friendId] = [];
-            
-            saveData();
-            renderFriends();
-            document.getElementById('friendIdInput').value = '';
-            alert(`${friendId} にフレンド申請を送りました！（シミュレート完了）`);
-        }
-
-        function renderFriends() {
-            const friendList = document.getElementById('friendList');
-            friendList.innerHTML = '';
-            appData.friends.forEach(friend => {
-                const div = document.createElement('div');
-                div.className = 'friend-item';
-                div.innerHTML = `
-                    <div class="status-indicator" style="background-color: ${friend.online ? 'var(--online)' : 'var(--text-muted)'}"></div>
-                    <span>${friend.name}</span>
-                `;
-                div.onclick = () => openChat(friend.id, friend.name);
-                friendList.appendChild(div);
-            });
-        }
-
-        // --- チャット機能 ---
-        let currentChatId = null;
-
-        function openChat(friendId, friendName) {
-            currentChatId = friendId;
-            document.getElementById('currentChatUser').textContent = friendName + " とのチャット";
-            renderMessages();
-        }
-
-        function renderMessages() {
-            if (!currentChatId) return;
-            const messagesArea = document.getElementById('messagesArea');
-            messagesArea.innerHTML = '';
-            
-            const msgs = appData.messages[currentChatId] || [];
-            msgs.forEach(msg => {
-                const isMe = msg.sender === appData.user.id;
+        // onSnapshotを使うと、データベースが更新された瞬間に自動でこの処理が走ります
+        onSnapshot(q, (snapshot) => {
+            messagesArea.innerHTML = ''; // 一旦クリア
+            snapshot.forEach((doc) => {
+                const msg = doc.data();
                 const div = document.createElement('div');
                 div.className = 'message';
                 
-                let mediaHtml = '';
-                if (msg.file) {
-                    if (msg.fileType.startsWith('image/')) {
-                        mediaHtml = `<img src="${msg.file}" class="image-preview">`;
-                    } else {
-                        mediaHtml = `<a href="${msg.file}" download="attachment" style="color: var(--accent);">📎 ファイル添付</a>`;
-                    }
+                // 時間のフォーマット処理
+                let timeString = "送信中...";
+                if (msg.createdAt) {
+                    const date = msg.createdAt.toDate();
+                    timeString = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 }
+
+                const isMe = msg.senderId === myUserId;
+                const displayName = isMe ? `あなた (ID: ${msg.senderId})` : `ユーザー (ID: ${msg.senderId})`;
 
                 div.innerHTML = `
                     <div class="message-header">
-                        <span class="message-sender">${isMe ? appData.user.name : "User_" + currentChatId}</span>
-                        <span class="message-time">${msg.timestamp}</span>
+                        <span class="message-sender" style="color: ${isMe ? 'var(--accent)' : 'white'}">${displayName}</span>
+                        <span class="message-time">${timeString}</span>
                     </div>
                     <div>${msg.text}</div>
-                    ${mediaHtml}
                 `;
                 messagesArea.appendChild(div);
             });
+            // 一番下までスクロール
             messagesArea.scrollTop = messagesArea.scrollHeight;
-        }
+        });
 
-        function sendMessage(fileData = null, fileType = null) {
-            if (!currentChatId) {
-                alert("チャットするフレンドを選択してください。");
-                return;
-            }
+        // --- メッセージの送信 ---
+        document.getElementById('sendBtn').addEventListener('click', async () => {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
-            
-            if (!text && !fileData) return;
+            if (!text) return;
 
-            const newMsg = {
-                sender: appData.user.id,
-                text: text,
-                file: fileData,
-                fileType: fileType,
-                timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-            };
+            input.value = ''; // 入力欄を空にする
 
-            appData.messages[currentChatId].push(newMsg);
-            saveData();
-            input.value = '';
-            renderMessages();
-        }
-
-        // --- ファイル送信処理（Base64変換） ---
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const base64Data = e.target.result;
-                // 写真やファイルをメッセージとして送信
-                sendMessage('', base64Data, file.type);
-            };
-            reader.readAsDataURL(file);
-        }
+            // Firestoreにデータを追加
+            try {
+                await addDoc(collection(db, "messages"), {
+                    text: text,
+                    senderId: myUserId,
+                    createdAt: serverTimestamp() // サーバーの正確な時間を記録
+                });
+            } catch (e) {
+                console.error("エラーが発生しました: ", e);
+                alert("送信に失敗しました。Firebaseの設定（テストモードになっているか等）を確認してください。");
+            }
+        });
 
         // Enterキーで送信
         document.getElementById('messageInput').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') sendMessage();
+            if (e.key === 'Enter') {
+                document.getElementById('sendBtn').click();
+            }
         });
-
-        // 起動
-        initApp();
     </script>
 </body>
 </html>
