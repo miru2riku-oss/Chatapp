@@ -1,285 +1,498 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>chatapp</title>
-    <style>
-        :root { --bg-dark: #36393f; --bg-darker: #2f3136; --bg-darkest: #202225; --text-main: #dcddde; --text-muted: #72767d; --accent: #5865F2; --online: #3ba55c; }
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: var(--bg-dark); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
-        
-        /* サイドバー */
-        .sidebar { width: 260px; background-color: var(--bg-darker); display: flex; flex-direction: column; }
-        .user-profile { background-color: var(--bg-darkest); padding: 15px; display: flex; align-items: center; gap: 10px; }
-        .status-indicator { width: 12px; height: 12px; border-radius: 50%; background-color: var(--online); }
-        .friend-actions { padding: 15px; border-bottom: 1px solid var(--bg-darkest); }
-        .friend-actions input { width: 100%; padding: 8px; box-sizing: border-box; background-color: var(--bg-darkest); border: none; color: white; border-radius: 4px; margin-bottom: 5px; }
-        .friend-actions button { width: 100%; padding: 8px; background-color: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .friend-list { flex: 1; overflow-y: auto; padding: 10px; }
-        .friend-item { padding: 10px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
-        .friend-item:hover { background-color: var(--bg-dark); }
-        .friend-item.active { background-color: var(--accent); color: white; }
-        
-        /* チャットエリア */
-        .chat-area { flex: 1; display: flex; flex-direction: column; background-color: var(--bg-dark); }
-        .chat-header { padding: 15px; border-bottom: 1px solid var(--bg-darkest); font-weight: bold; font-size: 1.1em; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
-        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
-        .message { display: flex; flex-direction: column; }
-        .message-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
-        .message-sender { font-weight: bold; color: white; }
-        .message-time { font-size: 0.75em; color: var(--text-muted); }
-        .message-content { line-height: 1.4; }
-        .message-image { max-width: 300px; border-radius: 5px; margin-top: 5px; cursor: pointer; }
-        
-        /* 入力エリア */
-        .chat-input-area { padding: 20px; background-color: var(--bg-dark); }
-        .chat-input-wrapper { background-color: #40444b; border-radius: 8px; display: flex; padding: 10px; align-items: center; gap: 10px; }
-        .chat-input-wrapper input[type="text"] { flex: 1; background: transparent; border: none; color: white; outline: none; font-size: 1em; }
-        .icon-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2em; padding: 5px; transition: color 0.2s; }
-        .icon-btn:hover { color: white; }
-    </style>
-</head>
-<body>
-
-    <div class="sidebar">
-        <div class="user-profile">
-            <div class="status-indicator"></div>
-            <div>
-                <div style="font-weight: bold;">chatapp ユーザー</div>
-                <div style="font-size: 0.8em; color: var(--text-muted);">ID: <span id="myUserId">読込中...</span></div>
-            </div>
+    <div style="flex: 1; min-width: 300px;">
+        <div class="panel">
+            <h2>👤 プロフィール設定</h2>
+            <p>ID: <span id="myIdDisplay" class="my-id">読込中...</span></p>
+            <img id="myIconPreview" class="profile-img-preview" src="">
+            <input type="file" id="iconInput" accept="image/*" onchange="updateProfileIcon()">
+            <input type="text" id="myNameInput" placeholder="あなたの表示名" onchange="saveProfileName()">
         </div>
 
-        <div class="friend-actions">
-            <input type="text" id="friendIdInput" placeholder="フレンドID (6桁)を追加" maxlength="6">
-            <button id="addFriendBtn">フレンド追加</button>
+        <div class="panel">
+            <h2>🌍 グローバルチャット</h2>
+            <p style="font-size: 0.9em; color:#666;">全ユーザーが自動参加している共通ルームです。</p>
+            <button onclick="openChat('global', 'global_room_あああああ')" style="width: 100%; font-size: 1.1em; padding: 10px;">🌐 グローバルチャットを開く</button>
         </div>
 
-        <div class="friend-list" id="friendList">
-            <div style="color: var(--text-muted); font-size: 0.9em; text-align: center; margin-top: 20px;">
-                フレンドを追加して<br>チャットを始めましょう
-            </div>
+        <div class="panel">
+            <h2>🤝 フレンド</h2>
+            <input type="text" id="targetIdInput" placeholder="相手のIDを入力" maxlength="6">
+            <button onclick="sendFriendRequest()">申請を送る</button>
+            <ul id="friendList"></ul>
+        </div>
+
+        <div class="panel">
+            <h2>👥 グループ作成</h2>
+            <input type="text" id="groupNameInput" placeholder="グループ名">
+            <p style="font-size: 0.9em; color:#666;">オンラインのフレンドのみ追加できます</p>
+            <ul id="groupMemberSelection"></ul>
+            <button onclick="createGroup()">グループを作成</button>
+            <hr>
+            <h3>あなたのグループ</h3>
+            <ul id="groupList"></ul>
         </div>
     </div>
 
-    <div class="chat-area">
-        <div class="chat-header" id="chatHeader">
-            💬 メッセージ
+    <div class="panel" id="communicationPanel" style="flex: 2; min-width: 300px; display: none;">
+        <h2>💬 <span id="currentChatTitle">チャット</span></h2>
+        <p id="chatStatusText" style="font-size: 0.9em; color: #666;"></p>
+        
+        <div style="margin-bottom: 10px;">
+            <button id="btnCall" onclick="startCall(true)" disabled>📞 音声通話</button>
+            <button id="btnVideo" onclick="startCall(false)" disabled>💻 画面共有</button>
+            <button onclick="endCall()" style="background-color: #cc0000;">⏹ 終了</button>
         </div>
-        <div class="messages" id="messagesArea">
-            <div style="text-align: center; color: var(--text-muted); margin-top: 50px;">
-                左のリストからフレンドを選択してください
-            </div>
+
+        <div id="chatBox"></div>
+        
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+            <input type="text" id="chatInput" placeholder="メッセージを入力..." style="flex-grow: 1; margin:0;" disabled>
+            <button id="btnSendMsg" onclick="sendChatMessage()" disabled>送信</button>
         </div>
-        <div class="chat-input-area">
-            <div class="chat-input-wrapper">
-                <input type="file" id="fileInput" style="display: none;" accept="image/*">
-                <button class="icon-btn" id="fileBtn" title="画像を送る">📎</button>
-                <input type="text" id="messageInput" placeholder="メッセージを送信..." disabled>
-                <button class="icon-btn" id="sendBtn" disabled>▶</button>
-            </div>
+        
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="file" id="fileInput" disabled>
+            <button id="btnSendFile" onclick="sendFile()" disabled>ファイル送信</button>
         </div>
+
+        <div id="videoGrid" class="video-grid"></div>
     </div>
 
-    <script type="module">
-        // 1. 【絶対に失敗しないID発行処理】を最初に実行
-        let myId = localStorage.getItem('chatapp_my_id');
+    <script>
+        // --- データ初期化・ローカルストレージ ---
+        let myId = localStorage.getItem('p2p_myId');
         if (!myId) {
             myId = Math.floor(100000 + Math.random() * 900000).toString();
-            localStorage.setItem('chatapp_my_id', myId);
+            localStorage.setItem('p2p_myId', myId);
         }
-        document.getElementById('myUserId').textContent = myId;
+        document.getElementById('myIdDisplay').innerText = myId;
 
-        // 2. Firebaseのインポート
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        let myProfile = JSON.parse(localStorage.getItem('p2p_profile')) || { name: '名無し', icon: '' };
+        document.getElementById('myNameInput').value = myProfile.name;
+        if (myProfile.icon) document.getElementById('myIconPreview').src = myProfile.icon;
 
-        // ==========================================
-        // ↓↓↓ ここにあなたの firebaseConfig を貼り付けます ↓↓↓
-        const firebaseConfig = {
-            apiKey: "AIzaSyDSrzR3O41SsNfAohQKzlwxc0iCPF5o0Pg",
-            authDomain: "chatapp-62d81.firebaseapp.com",
-            projectId: "chatapp-62d81",
-            storageBucket: "chatapp-62d81.firebasestorage.app",
-            messagingSenderId: "1:308156426883:web:e50957cbf76b4be42a89b6",
-            appId: "G-JG5C08XY4X"
-        };
-        // ↑↑↑ ここまで ↑↑↑
-        // ==========================================
+        let friends = JSON.parse(localStorage.getItem('p2p_friends')) || {};
+        let groups = JSON.parse(localStorage.getItem('p2p_groups')) || {};
+        
+        // --- 状態管理 ---
+        const peer = new Peer(myId);
+        let activeConnections = {};
+        let activeCalls = {};
+        let myStream = null;
+        
+        let currentMode = null;
+        let currentTarget = null;
+        let targetPeers = [];
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        // グローバルチャット強制参加用の変数
+        const GLOBAL_ROOM_ID = 'global_room_あああああ';
+        let globalRoomPeers = [];
+        let isGlobalHost = false;
+        let globalHostPeer = null;
 
-        // 変数準備
-        let currentChatFriendId = null;
-        let unsubscribeMessages = null;
-
-        // --- 起動時に自分の情報をデータベースに登録（オンライン状態の基礎） ---
-        async function registerMe() {
-            try {
-                await setDoc(doc(db, "users", myId), {
-                    lastLogin: serverTimestamp(),
-                    isOnline: true
-                }, { merge: true });
-            } catch (e) {
-                console.error("ユーザー登録エラー。テストモードが有効か確認してください", e);
-            }
-        }
-        registerMe();
-
-        // --- フレンド機能 ---
-        document.getElementById('addFriendBtn').addEventListener('click', async () => {
-            const targetId = document.getElementById('friendIdInput').value;
-            if (targetId.length !== 6 || isNaN(targetId)) return alert("6桁の数字を入力してください");
-            if (targetId === myId) return alert("自分自身は追加できません");
-
-            // 自分のドキュメントの中にある「friends」リストに追加
-            const myRef = doc(db, "users", myId);
-            const mySnap = await getDoc(myRef);
-            let friends = [];
-            if (mySnap.exists() && mySnap.data().friends) {
-                friends = mySnap.data().friends;
-            }
-
-            if (!friends.includes(targetId)) {
-                friends.push(targetId);
-                await setDoc(myRef, { friends: friends }, { merge: true });
-                alert(`ID: ${targetId} をフレンドに追加しました！`);
-                document.getElementById('friendIdInput').value = '';
-            } else {
-                alert("既にフレンドに追加されています");
-            }
-        });
-
-        // 自分のフレンドリストをリアルタイム監視
-        onSnapshot(doc(db, "users", myId), (docSnap) => {
-            if (docSnap.exists() && docSnap.data().friends) {
-                renderFriendList(docSnap.data().friends);
-            }
-        });
-
-        function renderFriendList(friends) {
-            const list = document.getElementById('friendList');
-            if (friends.length === 0) return;
-            list.innerHTML = '';
-            
-            friends.forEach(friendId => {
-                const div = document.createElement('div');
-                div.className = `friend-item ${friendId === currentChatFriendId ? 'active' : ''}`;
-                div.innerHTML = `
-                    <div class="status-indicator"></div>
-                    <span>ユーザー ${friendId}</span>
-                `;
-                div.onclick = () => openChat(friendId);
-                list.appendChild(div);
-            });
-        }
-
-        // --- チャットルーム機能 ---
-        function openChat(friendId) {
-            currentChatFriendId = friendId;
-            document.getElementById('chatHeader').textContent = `💬 ユーザー ${friendId} とのチャット`;
-            
-            // UIのアクティブ状態を更新
-            const items = document.querySelectorAll('.friend-item');
-            items.forEach(item => item.classList.remove('active'));
-            event.currentTarget.classList.add('active');
-
-            // 入力欄を有効化
-            document.getElementById('messageInput').disabled = false;
-            document.getElementById('sendBtn').disabled = false;
-
-            // 1対1の専用ルームIDを作成（IDが若い順に結合して必ず同じ文字列にする）
-            const roomId = [myId, friendId].sort().join('_');
-            loadMessages(roomId);
-        }
-
-        function loadMessages(roomId) {
-            const messagesArea = document.getElementById('messagesArea');
-            if (unsubscribeMessages) unsubscribeMessages(); // 前の監視を解除
-
-            const q = query(collection(db, `rooms/${roomId}/messages`), orderBy("createdAt", "asc"));
-            
-            unsubscribeMessages = onSnapshot(q, (snapshot) => {
-                messagesArea.innerHTML = '';
-                snapshot.forEach((doc) => {
-                    const msg = doc.data();
-                    const isMe = msg.senderId === myId;
-                    const time = msg.createdAt ? msg.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '送信中...';
-                    
-                    const div = document.createElement('div');
-                    div.className = 'message';
-                    
-                    // 画像かテキストかで表示を変える
-                    let contentHtml = '';
-                    if (msg.imageUrl) {
-                        contentHtml = `<img src="${msg.imageUrl}" class="message-image" onclick="window.open('${msg.imageUrl}')">`;
-                    } else {
-                        contentHtml = `<div class="message-content">${msg.text}</div>`;
-                    }
-
-                    div.innerHTML = `
-                        <div class="message-header">
-                            <span class="message-sender" style="color: ${isMe ? 'var(--accent)' : 'white'}">${isMe ? 'あなた' : '相手'}</span>
-                            <span class="message-time">${time}</span>
-                        </div>
-                        ${contentHtml}
-                    `;
-                    messagesArea.appendChild(div);
-                });
-                messagesArea.scrollTop = messagesArea.scrollHeight; // 一番下へスクロール
-            });
-        }
-
-        // --- 送信機能（テキスト） ---
-        document.getElementById('sendBtn').addEventListener('click', async () => {
-            if (!currentChatFriendId) return;
-            const input = document.getElementById('messageInput');
-            const text = input.value.trim();
-            if (!text) return;
-
-            input.value = '';
-            const roomId = [myId, currentChatFriendId].sort().join('_');
-
-            await addDoc(collection(db, `rooms/${roomId}/messages`), {
-                text: text,
-                senderId: myId,
-                createdAt: serverTimestamp()
-            });
-        });
-
-        // Enterキーで送信
-        document.getElementById('messageInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') document.getElementById('sendBtn').click();
-        });
-
-        // --- 送信機能（画像 / ファイル） ---
-        document.getElementById('fileBtn').addEventListener('click', () => {
-            if (!currentChatFriendId) return alert('先にフレンドを選択してください');
-            document.getElementById('fileInput').click();
-        });
-
-        document.getElementById('fileInput').addEventListener('change', (e) => {
-            const file = e.target.files[0];
+        // --- プロフィール設定 ---
+        function updateProfileIcon() {
+            const file = document.getElementById('iconInput').files[0];
             if (!file) return;
-
-            // ファイルをBase64に変換して直接Firestoreに保存（※本番環境ではStorageを使いますが、今回は簡易実装です）
             const reader = new FileReader();
-            reader.onload = async (event) => {
-                const base64Data = event.target.result;
-                const roomId = [myId, currentChatFriendId].sort().join('_');
-                
-                await addDoc(collection(db, `rooms/${roomId}/messages`), {
-                    text: "[画像]",
-                    imageUrl: base64Data,
-                    senderId: myId,
-                    createdAt: serverTimestamp()
-                });
+            reader.onload = (e) => {
+                myProfile.icon = e.target.result;
+                document.getElementById('myIconPreview').src = myProfile.icon;
+                saveProfileData();
             };
-            reader.readAsDataURL(file); // 画像読み込み開始
-            e.target.value = ''; // 選択リセット
+            reader.readAsDataURL(file);
+        }
+        function saveProfileName() {
+            myProfile.name = document.getElementById('myNameInput').value || '名無し';
+            saveProfileData();
+        }
+        function saveProfileData() { localStorage.setItem('p2p_profile', JSON.stringify(myProfile)); }
+        function saveFriends() { localStorage.setItem('p2p_friends', JSON.stringify(friends)); }
+        function saveGroups() { localStorage.setItem('p2p_groups', JSON.stringify(groups)); }
+
+        // --- PeerJS イベント ---
+        peer.on('open', id => {
+            console.log('PeerJS Connected:', id);
+            updateFriendUI();
+            updateGroupUI();
+            
+            // アプリ起動時に強制的にグローバルチャットのネットワークに参加
+            maintainGlobalChat();
+            setInterval(maintainGlobalChat, 10000); // ホストが落ちたときのために定期チェック
+            setInterval(checkOnlineStatus, 5000);
         });
 
+        peer.on('connection', conn => { setupConnection(conn); });
+
+        function setupConnection(conn) {
+            conn.on('open', () => {
+                activeConnections[conn.peer] = conn;
+                conn.send({ type: 'PROFILE', profile: myProfile });
+                
+                // 自分がグローバルホストなら、新しく繋いできた人に参加者リストを配る
+                if (isGlobalHost && conn.peer !== GLOBAL_ROOM_ID) {
+                    const peers = Object.keys(activeConnections).filter(id => id !== GLOBAL_ROOM_ID);
+                    peers.push(myId);
+                    conn.send({ type: 'ROOM_PEERS', room: GLOBAL_ROOM_ID, peers: peers });
+                }
+                updateChatUIState();
+            });
+
+            conn.on('data', data => { handleIncomingData(conn.peer, data); });
+
+            conn.on('close', () => {
+                delete activeConnections[conn.peer];
+                if (globalRoomPeers.includes(conn.peer)) {
+                    globalRoomPeers = globalRoomPeers.filter(id => id !== conn.peer);
+                }
+                updateChatUIState();
+            });
+            conn.on('error', () => {
+                delete activeConnections[conn.peer];
+            });
+        }
+
+        function handleIncomingData(peerId, data) {
+            if (data.type === 'PROFILE') {
+                if (friends[peerId]) {
+                    friends[peerId].name = data.profile.name;
+                    friends[peerId].icon = data.profile.icon;
+                    saveFriends();
+                    updateFriendUI();
+                }
+            } else if (data.type === 'FRIEND_REQUEST') {
+                if (confirm(`${data.profile.name} (ID: ${peerId}) からフレンド申請です。承認しますか？`)) {
+                    friends[peerId] = data.profile;
+                    saveFriends();
+                    updateFriendUI();
+                    const conn = connectToPeer(peerId);
+                    setTimeout(() => conn.send({ type: 'FRIEND_ACCEPT', profile: myProfile }), 1000);
+                }
+            } else if (data.type === 'FRIEND_ACCEPT') {
+                friends[peerId] = data.profile;
+                saveFriends();
+                updateFriendUI();
+                alert(`${data.profile.name} とフレンドになりました！`);
+            } else if (data.type === 'CHAT') {
+                if (targetPeers.includes(peerId) || (currentMode === 'global' && (globalRoomPeers.includes(peerId) || peerId === GLOBAL_ROOM_ID))) {
+                    displayMessage(peerId, data.message, false);
+                }
+            } else if (data.type === 'FILE') {
+                if (targetPeers.includes(peerId) || (currentMode === 'global' && (globalRoomPeers.includes(peerId) || peerId === GLOBAL_ROOM_ID))) {
+                    receiveFile(peerId, data.file, data.filename, data.filetype);
+                }
+            } else if (data.type === 'GROUP_INVITE') {
+                if (confirm(`グループ「${data.groupName}」に招待されました。参加しますか？`)) {
+                    groups[data.groupId] = { name: data.groupName, members: data.members };
+                    saveGroups();
+                    updateGroupUI();
+                }
+            } else if (data.type === 'ROOM_PEERS') {
+                // バックグラウンドでルームの参加者リストを受け取り、網の目状に繋がる
+                if (data.room === GLOBAL_ROOM_ID) {
+                    data.peers.forEach(p => {
+                        if (p !== myId && !activeConnections[p]) connectToPeer(p);
+                        if (!globalRoomPeers.includes(p) && p !== myId) globalRoomPeers.push(p);
+                    });
+                    // グローバルチャットを開いている最中ならターゲットを更新
+                    if (currentMode === 'global') {
+                        targetPeers = [GLOBAL_ROOM_ID, ...globalRoomPeers].filter(id => id !== myId);
+                        updateChatUIState();
+                    }
+                }
+            }
+        }
+
+        // --- 強制参加グローバルチャットの維持 ---
+        function maintainGlobalChat() {
+            // すでにホストと繋がっている、または自分がホストなら何もしない
+            if (activeConnections[GLOBAL_ROOM_ID] && activeConnections[GLOBAL_ROOM_ID].open) return;
+            if (isGlobalHost) return;
+
+            // 自分がホスト（親）になれるか試す
+            if (!globalHostPeer) {
+                globalHostPeer = new Peer(GLOBAL_ROOM_ID);
+                globalHostPeer.on('open', () => {
+                    isGlobalHost = true;
+                    console.log('あなたがグローバルチャットのホスト(親)になりました');
+                    globalHostPeer.on('connection', conn => {
+                        setupConnection(conn);
+                    });
+                });
+                globalHostPeer.on('error', err => {
+                    if (err.type === 'unavailable-id') {
+                        // すでに誰かがホストになっているので、そこに接続する
+                        isGlobalHost = false;
+                        globalHostPeer.destroy();
+                        globalHostPeer = null;
+                        connectToPeer(GLOBAL_ROOM_ID);
+                    }
+                });
+            } else if (!isGlobalHost) {
+                connectToPeer(GLOBAL_ROOM_ID);
+            }
+        }
+
+        // --- 着信処理 ---
+        peer.on('call', call => {
+            if (targetPeers.includes(call.peer) || globalRoomPeers.includes(call.peer) || call.peer === GLOBAL_ROOM_ID) {
+                answerCall(call);
+            } else {
+                if(confirm(`${friends[call.peer]?.name || call.peer} から着信です。応答しますか？`)) {
+                    answerCall(call);
+                }
+            }
+        });
+
+        function answerCall(call) {
+            call.answer(myStream);
+            call.on('stream', remoteStream => { addVideoStream(call.peer, remoteStream); });
+            activeCalls[call.peer] = call;
+            call.on('close', () => removeVideoStream(call.peer));
+        }
+
+        function connectToPeer(id) {
+            if (activeConnections[id] && activeConnections[id].open) return activeConnections[id];
+            const conn = peer.connect(id);
+            setupConnection(conn);
+            return conn;
+        }
+
+        function broadcastToTargets(data) {
+            targetPeers.forEach(id => {
+                if (activeConnections[id] && activeConnections[id].open) {
+                    activeConnections[id].send(data);
+                }
+            });
+        }
+
+        // --- フレンド・グループUI更新（省略せず記載） ---
+        function sendFriendRequest() {
+            const id = document.getElementById('targetIdInput').value;
+            if (!id || id === myId) return;
+            const conn = connectToPeer(id);
+            setTimeout(() => {
+                if (conn.open) {
+                    conn.send({ type: 'FRIEND_REQUEST', profile: myProfile });
+                    alert('申請を送信しました');
+                } else {
+                    alert('相手がオフラインのようです');
+                }
+            }, 1500);
+        }
+
+        function updateFriendUI() {
+            const list = document.getElementById('friendList');
+            const groupSelect = document.getElementById('groupMemberSelection');
+            list.innerHTML = ''; groupSelect.innerHTML = '';
+            for (let id in friends) {
+                const f = friends[id];
+                const isOnline = activeConnections[id] && activeConnections[id].open;
+                list.innerHTML += `
+                    <li>
+                        <div style="display:flex; align-items:center;">
+                            <span class="status-dot ${isOnline ? 'online' : ''}"></span>
+                            <img src="${f.icon || 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='}" class="msg-icon" style="margin-right:5px;">
+                            ${f.name} <span style="font-size:0.7em; color:#999;">(${id})</span>
+                        </div>
+                        <button onclick="openChat('friend', '${id}')">チャット</button>
+                        <button onclick="deleteFriend('${id}')" style="background:#dc3545; padding:4px 8px; font-size:0.8em;">削除</button>
+                    </li>`;
+                groupSelect.innerHTML += `<li><label><input type="checkbox" value="${id}" class="group-cb"> ${f.name} ${isOnline ? '(オンライン)' : '(オフライン)'}</label></li>`;
+            }
+        }
+
+        function deleteFriend(id) {
+            if(confirm('削除しますか？')) { delete friends[id]; saveFriends(); updateFriendUI(); }
+        }
+
+        function checkOnlineStatus() {
+            for (let id in friends) {
+                if (!activeConnections[id] || !activeConnections[id].open) connectToPeer(id);
+            }
+            setTimeout(() => { updateFriendUI(); updateChatUIState(); }, 2000);
+        }
+
+        function createGroup() {
+            const name = document.getElementById('groupNameInput').value;
+            if(!name) return alert('グループ名を入力してください');
+            const members = Array.from(document.querySelectorAll('.group-cb:checked')).map(cb => cb.value);
+            const offlineMembers = members.filter(id => !activeConnections[id] || !activeConnections[id].open);
+            if (offlineMembers.length > 0) return alert('オンラインのフレンドのみグループに追加できます。');
+            members.push(myId);
+            const groupId = 'group_' + Date.now();
+            groups[groupId] = { name: name, members: members };
+            saveGroups(); updateGroupUI();
+            members.forEach(id => {
+                if (id !== myId) activeConnections[id].send({ type: 'GROUP_INVITE', groupId: groupId, groupName: name, members: members });
+            });
+            alert('グループを作成しました。');
+            document.getElementById('groupNameInput').value = '';
+        }
+
+        function updateGroupUI() {
+            const list = document.getElementById('groupList');
+            list.innerHTML = '';
+            for (let gid in groups) {
+                const g = groups[gid];
+                list.innerHTML += `
+                    <li>
+                        <span>${g.name} (${g.members.length}人)</span>
+                        <button onclick="openChat('group', '${gid}')">開く</button>
+                        <button onclick="deleteGroup('${gid}')" style="background:#dc3545; padding:4px 8px; font-size:0.8em;">削除</button>
+                    </li>`;
+            }
+        }
+        function deleteGroup(gid) {
+            if(confirm('グループを削除しますか？')) { delete groups[gid]; saveGroups(); updateGroupUI(); }
+        }
+
+        // --- チャット・通話 UI ---
+        function openChat(mode, target) {
+            currentMode = mode;
+            currentTarget = target;
+            targetPeers = [];
+            document.getElementById('chatBox').innerHTML = '';
+            document.getElementById('videoGrid').innerHTML = '';
+            document.getElementById('communicationPanel').style.display = 'block';
+
+            if (mode === 'friend') {
+                targetPeers = [target];
+                document.getElementById('currentChatTitle').innerText = friends[target].name;
+                connectToPeer(target);
+            } else if (mode === 'group') {
+                const g = groups[target];
+                document.getElementById('currentChatTitle').innerText = g.name;
+                targetPeers = g.members.filter(id => id !== myId);
+                targetPeers.forEach(id => connectToPeer(id));
+            } else if (mode === 'global') {
+                document.getElementById('currentChatTitle').innerText = 'グローバルチャット';
+                // ホストと、共有された参加者全員をターゲットにする
+                targetPeers = [GLOBAL_ROOM_ID, ...globalRoomPeers].filter(id => id !== myId);
+                targetPeers.forEach(id => connectToPeer(id));
+            }
+
+            setTimeout(updateChatUIState, 1500);
+        }
+
+        function updateChatUIState() {
+            if (!currentMode) return;
+            const activeCount = targetPeers.filter(id => activeConnections[id] && activeConnections[id].open).length;
+            const statusText = document.getElementById('chatStatusText');
+
+            if (currentMode === 'friend') {
+                if (activeCount > 0) {
+                    statusText.innerText = "🟢 オンライン（通信可能）"; statusText.style.color = "green"; enableControls(true);
+                } else {
+                    statusText.innerText = "🔴 オフライン"; statusText.style.color = "red"; enableControls(false);
+                }
+            } else if (currentMode === 'group' || currentMode === 'global') {
+                if (activeCount > 0) {
+                    statusText.innerText = `🟢 あなたを含め ${activeCount + 1}人 参加中`; statusText.style.color = "green"; enableControls(true);
+                } else {
+                    statusText.innerText = "🔴 誰もオンラインではありません"; statusText.style.color = "red"; enableControls(false);
+                }
+            }
+        }
+
+        function enableControls(enable) {
+            ['btnCall', 'btnVideo', 'btnSendMsg', 'chatInput', 'fileInput', 'btnSendFile'].forEach(id => {
+                document.getElementById(id).disabled = !enable;
+            });
+        }
+
+        // --- メッセージ送信 ---
+        function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const msg = input.value;
+            if (!msg || targetPeers.length === 0) return;
+            broadcastToTargets({ type: 'CHAT', message: msg });
+            displayMessage(myId, msg, true);
+            input.value = '';
+        }
+
+        function sendFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) return;
+            broadcastToTargets({ type: 'FILE', file: file, filename: file.name, filetype: file.type });
+            displayMessage(myId, `ファイル [${file.name}] を送信しました`, true);
+            fileInput.value = '';
+        }
+
+        function displayMessage(peerId, message, isMe) {
+            const box = document.getElementById('chatBox');
+            const div = document.createElement('div');
+            div.className = `msg ${isMe ? 'me' : ''}`;
+            
+            // グローバルチャット等で知らない人の場合はIDを表示
+            let name = isMe ? myProfile.name : (friends[peerId] ? friends[peerId].name : `ゲスト(${peerId.substring(0,4)}..)`);
+            let icon = isMe ? myProfile.icon : (friends[peerId] ? friends[peerId].icon : '');
+            if (!icon) icon = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+
+            div.innerHTML = `<img src="${icon}" class="msg-icon"><div><div class="msg-sender">${name}</div><div class="msg-content">${message}</div></div>`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function receiveFile(peerId, fileBlob, filename, filetype) {
+            const box = document.getElementById('chatBox');
+            const div = document.createElement('div');
+            div.className = 'msg';
+            let name = friends[peerId] ? friends[peerId].name : `ゲスト(${peerId.substring(0,4)}..)`;
+            let icon = friends[peerId] ? friends[peerId].icon : 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+            
+            const url = URL.createObjectURL(new Blob([fileBlob]));
+            let content = filetype.startsWith('image/') ? `<img src="${url}" style="max-width: 200px; border-radius: 8px;">` : `<a href="${url}" download="${filename}">${filename} をダウンロード</a>`;
+
+            div.innerHTML = `<img src="${icon}" class="msg-icon"><div><div class="msg-sender">${name}</div><div class="msg-content">${content}</div></div>`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // --- 通話・画面共有 ---
+        async function startCall(isAudioOnly) {
+            try {
+                if (isAudioOnly) {
+                    myStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                } else {
+                    myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                }
+                if (!isAudioOnly) addVideoStream('my_screen', myStream, true);
+
+                targetPeers.forEach(id => {
+                    if (activeConnections[id] && activeConnections[id].open) {
+                        const call = peer.call(id, myStream);
+                        activeCalls[id] = call;
+                        call.on('stream', remoteStream => { addVideoStream(id, remoteStream); });
+                        call.on('close', () => removeVideoStream(id));
+                    }
+                });
+                myStream.getVideoTracks()[0]?.addEventListener('ended', endCall);
+            } catch (err) { alert("マイク/画面共有の権限がありません。"); }
+        }
+
+        function endCall() {
+            if (myStream) { myStream.getTracks().forEach(track => track.stop()); myStream = null; }
+            for (let id in activeCalls) { activeCalls[id].close(); }
+            activeCalls = {};
+            document.getElementById('videoGrid').innerHTML = '';
+        }
+
+        function addVideoStream(id, stream, muted = false) {
+            if (document.getElementById('video_' + id)) return;
+            const video = document.createElement('video');
+            video.id = 'video_' + id;
+            video.srcObject = stream;
+            video.autoplay = true;
+            video.playsInline = true;
+            if (muted) video.muted = true;
+            document.getElementById('videoGrid').appendChild(video);
+        }
+
+        function removeVideoStream(id) {
+            const video = document.getElementById('video_' + id);
+            if (video) video.remove();
+        }
     </script>
 </body>
 </html>
