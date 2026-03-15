@@ -1,3 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P チャット＆通話アプリ (完全版)</title>
+    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 900px; margin: 0 auto; padding: 10px; background-color: #f4f4f9; display: flex; flex-wrap: wrap; gap: 20px;}
+        .panel { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex: 1; min-width: 300px; margin-bottom: 20px;}
+        h2 { margin-top: 0; color: #333; font-size: 1.2em; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+        .my-id { font-size: 20px; font-weight: bold; color: #0066cc; }
+        input[type="text"] { padding: 8px; width: calc(100% - 20px); margin-bottom: 10px; box-sizing: border-box;}
+        button { padding: 8px 15px; cursor: pointer; background-color: #0066cc; color: white; border: none; border-radius: 4px; margin-bottom: 5px;}
+        button:hover { background-color: #004c99; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        ul { list-style: none; padding: 0; margin: 0;}
+        li { padding: 8px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        #chatBox { height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; background: #fafafa; }
+        .msg { margin-bottom: 10px; display: flex; align-items: flex-start; gap: 10px; }
+        .msg.me { flex-direction: row-reverse; }
+        .msg-icon { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background-color: #ddd; }
+        .msg-content { max-width: 70%; background: #e9ecef; padding: 8px; border-radius: 8px; word-break: break-all; }
+        .msg.me .msg-content { background: #d1e7dd; }
+        .msg-sender { font-size: 0.8em; color: #666; margin-bottom: 2px; }
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+        video { width: 100%; background: #000; border-radius: 8px; }
+        .profile-img-preview { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #ccc; display: block; margin-bottom: 10px; }
+        .status-dot { height: 10px; width: 10px; background-color: #bbb; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .status-dot.online { background-color: #28a745; }
+        .global-btn { width: 100%; font-size: 1.1em; padding: 12px; background-color: #28a745; margin-top: 10px;}
+        .global-btn:hover { background-color: #218838; }
+    </style>
+</head>
+<body>
+
     <div style="flex: 1; min-width: 300px;">
         <div class="panel">
             <h2>👤 プロフィール設定</h2>
@@ -10,7 +46,7 @@
         <div class="panel">
             <h2>🌍 グローバルチャット</h2>
             <p style="font-size: 0.9em; color:#666;">全ユーザーが自動参加している共通ルームです。</p>
-            <button onclick="openChat('global', 'global_room_あああああ')" style="width: 100%; font-size: 1.1em; padding: 10px;">🌐 グローバルチャットを開く</button>
+            <button class="global-btn" onclick="openChat('global', GLOBAL_ROOM_ID)">🌐 グローバルチャットを開く</button>
         </div>
 
         <div class="panel">
@@ -37,27 +73,30 @@
         <p id="chatStatusText" style="font-size: 0.9em; color: #666;"></p>
         
         <div style="margin-bottom: 10px;">
-            <button id="btnCall" onclick="startCall(true)" disabled>📞 音声通話</button>
-            <button id="btnVideo" onclick="startCall(false)" disabled>💻 画面共有</button>
+            <button id="btnCall" onclick="startCall(true)">📞 音声通話</button>
+            <button id="btnVideo" onclick="startCall(false)">💻 画面共有</button>
             <button onclick="endCall()" style="background-color: #cc0000;">⏹ 終了</button>
         </div>
 
         <div id="chatBox"></div>
         
         <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
-            <input type="text" id="chatInput" placeholder="メッセージを入力..." style="flex-grow: 1; margin:0;" disabled>
-            <button id="btnSendMsg" onclick="sendChatMessage()" disabled>送信</button>
+            <input type="text" id="chatInput" placeholder="メッセージを入力..." style="flex-grow: 1; margin:0;">
+            <button id="btnSendMsg" onclick="sendChatMessage()">送信</button>
         </div>
         
         <div style="display: flex; gap: 10px; align-items: center;">
-            <input type="file" id="fileInput" disabled>
-            <button id="btnSendFile" onclick="sendFile()" disabled>ファイル送信</button>
+            <input type="file" id="fileInput">
+            <button id="btnSendFile" onclick="sendFile()">ファイル送信</button>
         </div>
 
         <div id="videoGrid" class="video-grid"></div>
     </div>
 
     <script>
+        // --- 内部IDはエラー回避のため英数字(aaaaa)を使用 ---
+        const GLOBAL_ROOM_ID = 'global_room_aaaaa'; 
+
         // --- データ初期化・ローカルストレージ ---
         let myId = localStorage.getItem('p2p_myId');
         if (!myId) {
@@ -83,8 +122,7 @@
         let currentTarget = null;
         let targetPeers = [];
 
-        // グローバルチャット強制参加用の変数
-        const GLOBAL_ROOM_ID = 'global_room_あああああ';
+        // グローバルチャット用変数
         let globalRoomPeers = [];
         let isGlobalHost = false;
         let globalHostPeer = null;
@@ -111,14 +149,20 @@
 
         // --- PeerJS イベント ---
         peer.on('open', id => {
-            console.log('PeerJS Connected:', id);
+            console.log('PeerJS 接続成功:', id);
             updateFriendUI();
             updateGroupUI();
             
-            // アプリ起動時に強制的にグローバルチャットのネットワークに参加
+            // 起動時に自動でグローバルチャットネットワークに参加
             maintainGlobalChat();
-            setInterval(maintainGlobalChat, 10000); // ホストが落ちたときのために定期チェック
+            setInterval(maintainGlobalChat, 10000);
             setInterval(checkOnlineStatus, 5000);
+        });
+
+        // エラーハンドリング（ボタンが押せなくなるのを防ぐ）
+        peer.on('error', err => {
+            console.warn('PeerJS Error:', err);
+            updateChatUIState();
         });
 
         peer.on('connection', conn => { setupConnection(conn); });
@@ -128,7 +172,7 @@
                 activeConnections[conn.peer] = conn;
                 conn.send({ type: 'PROFILE', profile: myProfile });
                 
-                // 自分がグローバルホストなら、新しく繋いできた人に参加者リストを配る
+                // 自分がホストなら、参加者リストを配る
                 if (isGlobalHost && conn.peer !== GLOBAL_ROOM_ID) {
                     const peers = Object.keys(activeConnections).filter(id => id !== GLOBAL_ROOM_ID);
                     peers.push(myId);
@@ -148,6 +192,7 @@
             });
             conn.on('error', () => {
                 delete activeConnections[conn.peer];
+                updateChatUIState();
             });
         }
 
@@ -187,13 +232,11 @@
                     updateGroupUI();
                 }
             } else if (data.type === 'ROOM_PEERS') {
-                // バックグラウンドでルームの参加者リストを受け取り、網の目状に繋がる
                 if (data.room === GLOBAL_ROOM_ID) {
                     data.peers.forEach(p => {
                         if (p !== myId && !activeConnections[p]) connectToPeer(p);
                         if (!globalRoomPeers.includes(p) && p !== myId) globalRoomPeers.push(p);
                     });
-                    // グローバルチャットを開いている最中ならターゲットを更新
                     if (currentMode === 'global') {
                         targetPeers = [GLOBAL_ROOM_ID, ...globalRoomPeers].filter(id => id !== myId);
                         updateChatUIState();
@@ -204,11 +247,9 @@
 
         // --- 強制参加グローバルチャットの維持 ---
         function maintainGlobalChat() {
-            // すでにホストと繋がっている、または自分がホストなら何もしない
             if (activeConnections[GLOBAL_ROOM_ID] && activeConnections[GLOBAL_ROOM_ID].open) return;
             if (isGlobalHost) return;
 
-            // 自分がホスト（親）になれるか試す
             if (!globalHostPeer) {
                 globalHostPeer = new Peer(GLOBAL_ROOM_ID);
                 globalHostPeer.on('open', () => {
@@ -220,7 +261,6 @@
                 });
                 globalHostPeer.on('error', err => {
                     if (err.type === 'unavailable-id') {
-                        // すでに誰かがホストになっているので、そこに接続する
                         isGlobalHost = false;
                         globalHostPeer.destroy();
                         globalHostPeer = null;
@@ -265,7 +305,7 @@
             });
         }
 
-        // --- フレンド・グループUI更新（省略せず記載） ---
+        // --- フレンド・グループUI更新 ---
         function sendFriendRequest() {
             const id = document.getElementById('targetIdInput').value;
             if (!id || id === myId) return;
@@ -366,12 +406,12 @@
                 targetPeers.forEach(id => connectToPeer(id));
             } else if (mode === 'global') {
                 document.getElementById('currentChatTitle').innerText = 'グローバルチャット';
-                // ホストと、共有された参加者全員をターゲットにする
                 targetPeers = [GLOBAL_ROOM_ID, ...globalRoomPeers].filter(id => id !== myId);
                 targetPeers.forEach(id => connectToPeer(id));
             }
 
-            setTimeout(updateChatUIState, 1500);
+            updateChatUIState(); // 即時更新
+            setTimeout(updateChatUIState, 1500); // 接続後に再チェック
         }
 
         function updateChatUIState() {
@@ -386,7 +426,8 @@
                     statusText.innerText = "🔴 オフライン"; statusText.style.color = "red"; enableControls(false);
                 }
             } else if (currentMode === 'group' || currentMode === 'global') {
-                if (activeCount > 0) {
+                if (activeCount > 0 || isGlobalHost) {
+                    // グローバルホスト自身か、誰か繋がっていれば通信可能にする
                     statusText.innerText = `🟢 あなたを含め ${activeCount + 1}人 参加中`; statusText.style.color = "green"; enableControls(true);
                 } else {
                     statusText.innerText = "🔴 誰もオンラインではありません"; statusText.style.color = "red"; enableControls(false);
@@ -396,7 +437,8 @@
 
         function enableControls(enable) {
             ['btnCall', 'btnVideo', 'btnSendMsg', 'chatInput', 'fileInput', 'btnSendFile'].forEach(id => {
-                document.getElementById(id).disabled = !enable;
+                const element = document.getElementById(id);
+                if(element) element.disabled = !enable;
             });
         }
 
@@ -424,7 +466,6 @@
             const div = document.createElement('div');
             div.className = `msg ${isMe ? 'me' : ''}`;
             
-            // グローバルチャット等で知らない人の場合はIDを表示
             let name = isMe ? myProfile.name : (friends[peerId] ? friends[peerId].name : `ゲスト(${peerId.substring(0,4)}..)`);
             let icon = isMe ? myProfile.icon : (friends[peerId] ? friends[peerId].icon : '');
             if (!icon) icon = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
